@@ -1,9 +1,12 @@
-package com.undsf.brew.models
+package com.undsf.brew.models.vo
+
+import com.fasterxml.jackson.annotation.JsonInclude
 
 /**
  * 原料
  */
-open class Ingredient(
+@Deprecated("废弃")
+class Ingredient(
     /**
      * 编号
      */
@@ -28,11 +31,13 @@ open class Ingredient(
     /**
      * α-酸含量
      */
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     var alphaAcidContent: Float? = null,
 
     /**
      * 原产地
      */
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     var origin: String? = null,
     // endregion
 
@@ -40,26 +45,31 @@ open class Ingredient(
     /**
      * 发酵率
      */
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     var attenuation: Float? = null,
 
     /**
      * 酵母种类
      */
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     var yeastSpecies: String? = null,
 
     /**
      * 理想温度下限
      */
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     var optimalTemperatureLow: Int? = null,
 
     /**
      * 理想温度上限
      */
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     var optimalTemperatureHigh: Int? = null,
 
     /**
      * 酒精耐受度
      */
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     var alcoholTolerance: Float? = null,
     // endregion
 
@@ -67,53 +77,53 @@ open class Ingredient(
     /**
      * 效率
      */
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     var efficiency: Float? = null,
 
     /**
      * 颜色影响
      */
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     var colorInfluence: Float? = null,
 
     /**
      * 蛋白质添加物
      */
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     var proteinAddition: String? = null,
     // endregion
 
     /**
-     * 风味
+     * 标准风味
      */
-    var flavors: MutableList<Flavor> = mutableListOf()
+    val standardFlavors: MutableList<Flavor> = mutableListOf(),
+
+    /**
+     * 风味描述
+     */
+    val flavorNotes: MutableList<Flavor> = mutableListOf()
 ) {
-    val standardFlavors: List<Flavor>
-        get() {
-            val list = mutableListOf<Flavor>()
-            for (flavor in flavors) {
-                if (flavor.type == Flavor.StandardFlavor) {
-                    list.add(flavor)
-                }
-            }
-            return list
-        }
-
-    val flavorNotes: List<Flavor>
-        get() {
-            val list = mutableListOf<Flavor>()
-            for (flavor in flavors) {
-                if (flavor.type == Flavor.FlavorNote) {
-                    list.add(flavor)
-                }
-            }
-            return list
-        }
-
     fun addFlavor(type: Int, name: String, value: Int) : Flavor {
-        val flavorId = id * 100 + flavors.size + 1
-        return addFlavor(Flavor(flavorId, type, name, value))
+        var flavorId = id * 1000 + type * 100
+        flavorId += when (type) {
+            Flavor.StandardFlavor -> standardFlavors.size + 1
+            Flavor.FlavorNote -> flavorNotes.size + 1
+            else -> 0
+        }
+        val flavor = Flavor(
+            flavorId,
+            type,
+            name,
+            value
+        )
+        return addFlavor(flavor)
     }
 
     fun addFlavor(flavor: Flavor) : Flavor {
-        flavors.add(flavor)
+        when (flavor.type) {
+            Flavor.StandardFlavor -> standardFlavors.add(flavor)
+            Flavor.FlavorNote -> flavorNotes.add(flavor)
+        }
         return flavor
     }
 
@@ -121,6 +131,7 @@ open class Ingredient(
         return when (category) {
             IngredientCategory.Hops -> toHopString()
             IngredientCategory.Extracts -> toGrainsString()
+            IngredientCategory.Yeasts -> toYeastString()
             IngredientCategory.Grains -> toGrainsString()
             IngredientCategory.Steepables -> toGrainsString()
             else -> "其他"
@@ -129,22 +140,84 @@ open class Ingredient(
 
     private fun toHopString() : String {
         val builder = StringBuilder()
-        builder.appendLine("编号：\t\t\t$id")
+        // builder.appendLine("编号：\t\t\t$id")
+        builder.appendLine("No.$id $name")
+        builder.appendLine("-".repeat(40))
         builder.appendLine("分类：\t\t\t${category.title}")
         builder.appendLine("子分类：\t\t\t$subcategory")
         builder.appendLine("α-酸含量：\t\t${String.format("%.01f%%", 100f * alphaAcidContent!!)}")
         builder.appendLine("原产地：\t\t\t$origin")
+
+        builder.appendLine("标准风味：")
+        for (flavor in standardFlavors) {
+            builder.append("${flavor.name}-${flavor.value} ")
+        }
+        builder.appendLine()
+
+        builder.appendLine("风味描述：")
+        for (flavor in flavorNotes) {
+            builder.append("${flavor.name}-${flavor.value} ")
+        }
+        builder.appendLine()
+
+        return builder.toString()
+    }
+
+    private fun toYeastString() : String {
+        val builder = StringBuilder()
+        builder.appendLine("No.$id $name")
+        builder.appendLine("-".repeat(40))
+        builder.appendLine("分类：\t\t\t${category.title}")
+        builder.appendLine("子分类：\t\t\t$subcategory")
+        builder.appendLine("发酵度：\t\t\t${String.format("%.01f%%", 100f * attenuation!!)}")
+        builder.appendLine("酵母菌种：\t\t$yeastSpecies")
+        builder.appendLine("理想温度：\t\t$optimalTemperatureLow-$optimalTemperatureHigh℃")
+        builder.appendLine("酒精耐受度：\t\t${String.format("%.01f%%", 100f * alcoholTolerance!!)}")
+
+        builder.appendLine("标准风味：")
+        for (flavor in standardFlavors) {
+            builder.append("${flavor.name}-${flavor.value} ")
+        }
+        builder.appendLine()
+
+        builder.appendLine("风味描述：")
+        for (flavor in flavorNotes) {
+            builder.append("${flavor.name}-${flavor.value} ")
+        }
+        builder.appendLine()
+
         return builder.toString()
     }
 
     private fun toGrainsString() : String {
+        val colorInfluenceStr: String = if (colorInfluence!! < 10F) {
+            String.format("%.01f SRM", colorInfluence)
+        }
+        else {
+            String.format("%.0f SRM", colorInfluence)
+        }
+
         val builder = StringBuilder()
-        builder.appendLine("编号：\t\t\t$id")
+        builder.appendLine("No.$id $name")
+        builder.appendLine("-".repeat(40))
         builder.appendLine("分类：\t\t\t${category.title}")
         builder.appendLine("子分类：\t\t\t$subcategory")
         builder.appendLine("效率：\t\t\t${String.format("%.01f%%", 100f * efficiency!!)}")
-        builder.appendLine("颜色影响：\t\t$colorInfluence SRM")
+        builder.appendLine("颜色影响：\t\t$colorInfluenceStr")
         builder.appendLine("蛋白质添加物：\t\t$proteinAddition")
+
+        builder.appendLine("标准风味：")
+        for (flavor in standardFlavors) {
+            builder.append("${flavor.name}-${flavor.value} ")
+        }
+        builder.appendLine()
+
+        builder.appendLine("风味描述：")
+        for (flavor in flavorNotes) {
+            builder.append("${flavor.name}-${flavor.value} ")
+        }
+        builder.appendLine()
+
         return builder.toString()
     }
 

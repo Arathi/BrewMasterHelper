@@ -1,3 +1,15 @@
+spring:
+  datasource:
+    url: jdbc:sqlite:D:/Temp/brew_master.db
+    driver-class-name: org.sqlite.JDBC
+
+server:
+  port: 30111
+
+logging:
+  level:
+    "com.undsf.brew.mappers.CategoryMapper": TRACE
+
 brew-master-helper:
   data:
     dir: D:/Temp

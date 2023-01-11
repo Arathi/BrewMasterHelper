@@ -1,5 +1,6 @@
-package com.undsf.brew.models
+package com.undsf.brew.models.vo
 
+@Deprecated("废弃")
 class Flavor(
     var id: Int,
     var type: Int,

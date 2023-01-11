@@ -26,10 +26,13 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
-	implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 	implementation("org.apache.poi:poi:5.2.3")
 	implementation("org.apache.poi:poi-ooxml:5.2.3")
 	implementation("io.github.microutils:kotlin-logging:3.0.4")
+	implementation("com.baomidou:mybatis-plus-boot-starter:3.5.3.1")
+	implementation("org.xerial:sqlite-jdbc:3.40.0.0")
+
+	runtimeOnly("io.github.microutils:kotlin-logging-jvm:3.0.4")
 
 	compileOnly("org.projectlombok:lombok")
 	annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")

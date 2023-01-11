@@ -1,8 +1,9 @@
 package com.undsf.brew.services
 
-import com.undsf.brew.models.Flavor
-import com.undsf.brew.models.Ingredient
-import com.undsf.brew.models.IngredientCategory
+import com.undsf.brew.models.po.Category
+import com.undsf.brew.models.po.Flavor
+import com.undsf.brew.models.po.Ingredient
+import com.undsf.brew.models.vo.IngredientCategory
 import mu.KotlinLogging
 import org.apache.poi.ss.usermodel.Sheet
 import org.apache.poi.ss.usermodel.Workbook
@@ -19,6 +20,7 @@ class DataFileService {
     lateinit var dir: String
 
     lateinit var workbook: Workbook
+
     val standardFlavorSheet: Sheet
         get() {
         return workbook.getSheet("标准味道")
@@ -49,11 +51,17 @@ class DataFileService {
         val extracts = loadSheet("2-提取物（Extract）", IngredientCategory.Extracts)
         ingredients.addAll(extracts)
 
+        val yeasts = loadSheet("3-酵母（Yeast）", IngredientCategory.Yeasts)
+        ingredients.addAll(yeasts)
+
         val grains = loadSheet("4-谷物（Grain）", IngredientCategory.Grains)
         ingredients.addAll(grains)
 
         val steepables = loadSheet("5-可浸泡物（Steepable）", IngredientCategory.Steepables)
         ingredients.addAll(steepables)
+
+        val others = loadSheet("6-其他（Other）", IngredientCategory.Others)
+        ingredients.addAll(others)
 
         addFlavors(ingredients)
         return ingredients
@@ -65,7 +73,8 @@ class DataFileService {
         val ingredientMap = mutableMapOf<String, Ingredient>()
 
         for (ingredient in ingredients) {
-            val index = "${ingredient.category.title}/${ingredient.name}"
+            val mainCategoryName = Category.mainCategoryNames[ingredient.mainCategoryId]!!
+            val index = "$mainCategoryName/${ingredient.name}"
             ingredientMap[index] = ingredient
         }
 
@@ -74,7 +83,11 @@ class DataFileService {
             if (row.lastCellNum < 0) continue
 
             val ingredientName = row.getCell(0).stringCellValue
-            val ingredientCategory = row.getCell(1).stringCellValue
+            var ingredientCategory = row.getCell(1).stringCellValue
+            if (ingredientCategory == "麦芽提取物") {
+                ingredientCategory = "提取物"
+            }
+
             val index = "$ingredientCategory/$ingredientName"
             if (!ingredientMap.containsKey(index)) {
                 logger.warn { "未找到原料：$index！" }
@@ -85,10 +98,7 @@ class DataFileService {
             val name = row.getCell(2).stringCellValue
             val value = row.getCell(3).numericCellValue.toInt()
 
-            // val flavor = Flavor(0, Flavor.StandardFlavor, name, value)
-            // standardFlavors.add(flavor)
-            val flavor = ingredient.addFlavor(Flavor.StandardFlavor, name, value)
-            standardFlavors.add(flavor)
+            ingredient.addFlavor(Flavor.StandardFlavor, name, value)
         }
 
         for (rowNum in 1 .. flavorNoteSheet.lastRowNum) {
@@ -96,7 +106,11 @@ class DataFileService {
             if (row.lastCellNum < 0) continue
 
             val ingredientName = row.getCell(0).stringCellValue
-            val ingredientCategory = row.getCell(1).stringCellValue
+            var ingredientCategory = row.getCell(1).stringCellValue
+            if (ingredientCategory == "麦芽提取物") {
+                ingredientCategory = "提取物"
+            }
+
             val index = "$ingredientCategory/$ingredientName"
             if (!ingredientMap.containsKey(index)) {
                 logger.warn { "未找到原料：$index！" }
@@ -107,8 +121,7 @@ class DataFileService {
             val name = row.getCell(2).stringCellValue
             val value = row.getCell(3).numericCellValue.toInt()
 
-            val flavor = ingredient.addFlavor(Flavor.FlavorNote, name, value)
-            flavorNotes.add(flavor)
+            ingredient.addFlavor(Flavor.FlavorNote, name, value)
         }
     }
 
@@ -153,8 +166,6 @@ class DataFileService {
             index++
             val ingredient = Ingredient(
                 idBase + index,
-                category,
-                subcategory,
                 name
             )
 
@@ -188,5 +199,7 @@ class DataFileService {
         return ingredients
     }
 
+    private fun saveSheet() {
 
+    }
 }

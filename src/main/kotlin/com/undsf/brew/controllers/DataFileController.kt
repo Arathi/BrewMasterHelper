@@ -1,8 +1,7 @@
 package com.undsf.brew.controllers
 
-import com.undsf.brew.models.BasicResponse
 import com.undsf.brew.models.DataResponse
-import com.undsf.brew.models.Ingredient
+import com.undsf.brew.models.po.Ingredient
 import com.undsf.brew.services.DataFileService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.web.bind.annotation.PostMapping
