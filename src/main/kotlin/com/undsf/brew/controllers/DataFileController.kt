@@ -17,7 +17,9 @@ class DataFileController {
 
     @PostMapping("/load")
     fun load(@RequestParam("fileName") fileName: String) : DataResponse<List<Ingredient>> {
-        val ingredients = svc.load(fileName)
+        svc.open(fileName)
+        val ingredients = svc.load()
+        svc.saveToDatabase()
         return DataResponse(0, "成功", ingredients)
     }
 }

@@ -3,6 +3,7 @@ package com.undsf.brew.models.po
 import com.baomidou.mybatisplus.annotation.TableField
 import com.baomidou.mybatisplus.annotation.TableId
 import com.baomidou.mybatisplus.annotation.TableName
+import com.fasterxml.jackson.annotation.JsonIgnore
 
 @TableName("categories")
 class Category(
@@ -12,6 +13,7 @@ class Category(
     @TableField
     var name: String
 ) {
+    @get:JsonIgnore
     val fullName: String get() {
         val mainCategoryId = id / 10
         if (mainCategoryId in 1 .. 6) {

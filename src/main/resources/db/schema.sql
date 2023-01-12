@@ -1,7 +1,5 @@
 CREATE TABLE ingredients (
     id INTEGER NOT NULL PRIMARY KEY,
-    category INTEGER NOT NULL,
-    subcategory INTEGER NOT NULL,
     name TEXT NOT NULL,
     alpha_acid_content NUMERIC,
     origin text,

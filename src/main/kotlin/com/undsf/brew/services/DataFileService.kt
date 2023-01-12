@@ -8,9 +8,11 @@ import mu.KotlinLogging
 import org.apache.poi.ss.usermodel.Sheet
 import org.apache.poi.ss.usermodel.Workbook
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.io.File
+import java.util.concurrent.atomic.AtomicLong
 
 private val logger = KotlinLogging.logger {}
 
@@ -19,7 +21,17 @@ class DataFileService {
     @Value("\${brew-master-helper.data.dir}")
     lateinit var dir: String
 
+    @Autowired
+    lateinit var categorySvc: CategoryService
+
+    @Autowired
+    lateinit var flavorSvc: FlavorService
+
+    @Autowired
+    lateinit var ingredientSvc: IngredientService
+
     lateinit var workbook: Workbook
+    val ingredients = mutableListOf<Ingredient>()
 
     val standardFlavorSheet: Sheet
         get() {
@@ -31,36 +43,39 @@ class DataFileService {
         return workbook.getSheet("味道描述")
     }
 
-    fun load(fileName: String) : List<Ingredient> {
+    fun open(fileName: String) : Boolean {
         val path = "$dir/$fileName"
-        logger.info { "开始加载$path" }
-
-        val ingredients = mutableListOf<Ingredient>()
+        logger.info { "正在打开$path" }
 
         val file = File(path)
         if (!file.exists()) {
             logger.warn { "${path}不存在！" }
-            return ingredients
+            return false
         }
 
         workbook = XSSFWorkbook(file)
+        return true
+    }
 
-        val hops = loadSheet("1-啤酒花（Hop）", IngredientCategory.Hops)
+    fun load() : List<Ingredient> {
+        ingredients.clear()
+
+        val hops = loadSheet("1-啤酒花（Hop）", Category.Hops)
         ingredients.addAll(hops)
 
-        val extracts = loadSheet("2-提取物（Extract）", IngredientCategory.Extracts)
+        val extracts = loadSheet("2-提取物（Extract）", Category.Extracts)
         ingredients.addAll(extracts)
 
-        val yeasts = loadSheet("3-酵母（Yeast）", IngredientCategory.Yeasts)
+        val yeasts = loadSheet("3-酵母（Yeast）", Category.Yeasts)
         ingredients.addAll(yeasts)
 
-        val grains = loadSheet("4-谷物（Grain）", IngredientCategory.Grains)
+        val grains = loadSheet("4-谷物（Grain）", Category.Grains)
         ingredients.addAll(grains)
 
-        val steepables = loadSheet("5-可浸泡物（Steepable）", IngredientCategory.Steepables)
+        val steepables = loadSheet("5-可浸泡物（Steepable）", Category.Steepables)
         ingredients.addAll(steepables)
 
-        val others = loadSheet("6-其他（Other）", IngredientCategory.Others)
+        val others = loadSheet("6-其他（Other）", Category.Others)
         ingredients.addAll(others)
 
         addFlavors(ingredients)
@@ -68,8 +83,6 @@ class DataFileService {
     }
 
     private fun addFlavors(ingredients: List<Ingredient>) {
-        val standardFlavors = mutableListOf<Flavor>()
-        val flavorNotes = mutableListOf<Flavor>()
         val ingredientMap = mutableMapOf<String, Ingredient>()
 
         for (ingredient in ingredients) {
@@ -125,7 +138,7 @@ class DataFileService {
         }
     }
 
-    private fun loadSheet(sheetName: String, category: IngredientCategory) : List<Ingredient> {
+    private fun loadSheet(sheetName: String, categoryId: Int) : List<Ingredient> {
         logger.info { "开始加载表格${sheetName}" }
         val ingredientSheet = workbook.getSheet(sheetName)
         val ingredients = mutableListOf<Ingredient>()
@@ -138,7 +151,7 @@ class DataFileService {
         val scIndex: Int = fields["子类别"]!!
         val nameIndex: Int = fields["名称"]!!
 
-        var idBase = category.idBase
+        var idBase = categoryId * 1000
         var index = 1
         var lastSubcategory: String? = null
 
@@ -173,21 +186,21 @@ class DataFileService {
                 val fieldName = header.getCell(column).stringCellValue
                 when (fieldName) {
                     // region 啤酒花
-                    "α-酸含量" -> ingredient.alphaAcidContent = row.getCell(column).numericCellValue.toFloat()
+                    "α-酸含量" -> ingredient.alphaAcidContent = row.getCell(column).numericCellValue
                     "原产地" -> ingredient.origin = row.getCell(column).stringCellValue
                     // endregion
 
                     // region 酵母
-                    "发酵度" -> ingredient.attenuation = row.getCell(column).numericCellValue.toFloat()
+                    "发酵度" -> ingredient.attenuation = row.getCell(column).numericCellValue
                     "酵母菌种" -> ingredient.yeastSpecies = row.getCell(column).stringCellValue
                     "最佳温度下限" -> ingredient.optimalTemperatureLow = row.getCell(column).numericCellValue.toInt()
                     "最佳温度上限" -> ingredient.optimalTemperatureHigh = row.getCell(column).numericCellValue.toInt()
-                    "酒精耐受度" -> ingredient.alcoholTolerance = row.getCell(column).numericCellValue.toFloat()
+                    "酒精耐受度" -> ingredient.alcoholTolerance = row.getCell(column).numericCellValue
                     // endregion
 
                     // region 提取物、谷物、可浸泡物、其他
-                    "效率" -> ingredient.efficiency = row.getCell(column).numericCellValue.toFloat()
-                    "颜色影响" -> ingredient.colorInfluence = row.getCell(column).numericCellValue.toFloat()
+                    "效率" -> ingredient.efficiency = row.getCell(column).numericCellValue
+                    "颜色影响" -> ingredient.colorInfluence = row.getCell(column).numericCellValue
                     "蛋白质添加物（说明）" -> ingredient.proteinAddition = row.getCell(column).stringCellValue
                     // endregion
                 }
@@ -199,7 +212,32 @@ class DataFileService {
         return ingredients
     }
 
-    private fun saveSheet() {
+    fun saveSheet() {
 
+    }
+
+    fun saveToDatabase() {
+        val ingredientInserted = AtomicLong()
+        val standardFlavorInserted = AtomicLong()
+        val flavorNoteInserted = AtomicLong()
+
+        for (ingredient in ingredients) {
+            ingredientSvc.save(ingredient)
+            ingredientInserted.incrementAndGet()
+
+            for (flavor in ingredient.standardFlavors) {
+                flavorSvc.save(flavor)
+                standardFlavorInserted.incrementAndGet()
+            }
+
+            for (flavor in ingredient.flavorNotes) {
+                flavorSvc.save(flavor)
+                flavorNoteInserted.incrementAndGet()
+            }
+        }
+
+        logger.info { "导入原料${ingredientInserted.get()}条" }
+        logger.info { "导入标准风味${standardFlavorInserted.get()}条" }
+        logger.info { "导入风味描述${flavorNoteInserted.get()}条" }
     }
 }

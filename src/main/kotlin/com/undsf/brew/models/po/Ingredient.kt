@@ -3,6 +3,7 @@ package com.undsf.brew.models.po
 import com.baomidou.mybatisplus.annotation.TableField
 import com.baomidou.mybatisplus.annotation.TableId
 import com.baomidou.mybatisplus.annotation.TableName
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
 
@@ -27,7 +28,7 @@ class Ingredient(
     @TableField("alpha_acid_content")
     @JsonProperty("alpha_acid_content")
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
-    var alphaAcidContent: Float? = null,
+    var alphaAcidContent: Double? = null,
 
     /**
      * 原产地
@@ -43,7 +44,7 @@ class Ingredient(
      */
     @TableField
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
-    var attenuation: Float? = null,
+    var attenuation: Double? = null,
 
     /**
      * 酵母种类
@@ -75,7 +76,7 @@ class Ingredient(
     @TableField("alcohol_tolerance")
     @JsonProperty("alcohol_tolerance")
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
-    var alcoholTolerance: Float? = null,
+    var alcoholTolerance: Double? = null,
     // endregion
 
     // region 谷物、浸泡物、提取物、其他
@@ -84,7 +85,7 @@ class Ingredient(
      */
     @TableField
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
-    var efficiency: Float? = null,
+    var efficiency: Double? = null,
 
     /**
      * 颜色影响
@@ -92,7 +93,7 @@ class Ingredient(
     @TableField("color_influence")
     @JsonProperty("color_influence")
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
-    var colorInfluence: Float? = null,
+    var colorInfluence: Double? = null,
 
     /**
      * 蛋白质添加物
@@ -117,9 +118,16 @@ class Ingredient(
     @JsonProperty("flavor_notes")
     var flavorNotes: MutableList<Flavor> = mutableListOf(),
 ) {
+    @get:JsonIgnore
     val categoryId: Int get() = id / 100
+
+    @get:JsonIgnore
     val mainCategoryId: Int get() = categoryId / 10
+
+    @get:JsonIgnore
     val categoryFullName: String get() = Category.fullNames[categoryId]!!
+
+    constructor() : this(0, "")
 
     override fun toString(): String = "No.$id $name"
 
@@ -145,6 +153,7 @@ class Ingredient(
         }
     }
 
+    @get:JsonIgnore
     val info: String get() {
         val builder = StringBuilder()
         builder.appendLine("No.$id $name")
