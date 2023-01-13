@@ -6,6 +6,7 @@ import com.undsf.brew.models.po.Ingredient
 import com.undsf.brew.models.vo.IngredientCategory
 import mu.KotlinLogging
 import org.apache.poi.ss.usermodel.CellType
+import org.apache.poi.ss.usermodel.Row
 import org.apache.poi.ss.usermodel.Sheet
 import org.apache.poi.ss.usermodel.Workbook
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
@@ -13,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.io.File
+import java.io.FileOutputStream
 import java.util.concurrent.atomic.AtomicLong
 
 private val logger = KotlinLogging.logger {}
@@ -33,6 +35,7 @@ class DataFileService {
 
     lateinit var workbook: Workbook
     val ingredients = mutableListOf<Ingredient>()
+    val categoryNames = mutableMapOf<Int, String>()
 
     val standardFlavorSheet: Sheet
         get() {
@@ -228,8 +231,164 @@ class DataFileService {
         return ingredients
     }
 
-    fun saveSheet() {
+    fun save(fileName: String) {
+        val workbook = XSSFWorkbook()
 
+        val ingredientSheet = workbook.createSheet("原料")
+        createHeaderRow(ingredientSheet, listOf(
+            "序号", // 0
+            "名称", // 1
+            // ---
+            "类别", // 2
+            "子类别", // 3
+            // ---
+            "α-酸含量", // 4
+            "原产地", // 5
+            // ---
+            "发酵度", // 6
+            "酵母菌种", // 7
+            "理想温度下限", // 8
+            "理想温度上限", // 9
+            "酒精耐受度", // 10
+            // ---
+            "效率", // 11
+            "颜色影响", // 12
+            "蛋白质添加物", // 13
+            // ---
+            "描述", // 14
+        ))
+
+        val flavorSheet = workbook.createSheet("风味")
+        createHeaderRow(flavorSheet, listOf(
+            "序号", // 0
+            "原料名称", // 1
+            "原料类别", // 2
+            "风味", // 3
+            "值", // 4
+        ))
+
+        val categories = categorySvc.fetchAll()
+        categoryNames.clear()
+        for (category in categories) {
+            categoryNames[category.id] = category.name
+        }
+
+        val ingredients = ingredientSvc.getAll(true)
+        var ingredientRowNum = 0
+        var flavorRowNum = 0
+
+        for (ingredient in ingredients) {
+            val ingredientRow = ingredientSheet.createRow(++ingredientRowNum)
+            writeIngredient(ingredientRow, ingredient)
+
+            for (flavor in ingredient.standardFlavors) {
+                val row = flavorSheet.createRow(++flavorRowNum)
+                writeFlavor(row, ingredient, flavor)
+            }
+
+            for (flavor in ingredient.flavorNotes) {
+                val row = flavorSheet.createRow(++flavorRowNum)
+                writeFlavor(row, ingredient, flavor)
+            }
+        }
+
+        val fs = FileOutputStream("$dir/$fileName")
+        workbook.write(fs)
+        workbook.close()
+    }
+
+    private fun createHeaderRow(sheet: Sheet, fields: List<String>) {
+        val row = sheet.createRow(0)
+        for (index in fields.indices) {
+            val fieldName = fields[index]
+            val cell = row.createCell(index, CellType.STRING)
+            cell.setCellValue(fieldName)
+        }
+    }
+
+    private fun writeIngredient(row: Row, ingredient: Ingredient) {
+        // "序号", // 0
+        // "名称", // 1
+        val idCell = row.createCell(0, CellType.NUMERIC)
+        idCell.setCellValue(ingredient.id.toDouble())
+
+        val nameCell = row.createCell(1, CellType.STRING)
+        nameCell.setCellValue(ingredient.name)
+
+        // "类别", // 2
+        // "子类别", // 3
+        val categoryCell = row.createCell(2, CellType.STRING)
+        categoryCell.setCellValue(categoryNames[ingredient.mainCategoryId])
+
+        val subcategoryCell = row.createCell(3, CellType.STRING)
+        subcategoryCell.setCellValue(categoryNames[ingredient.categoryId])
+
+        // "α-酸含量", // 4
+        // "原产地", // 5
+        if (ingredient.mainCategoryId == Category.Hops) {
+            val aacCell = row.createCell(4, CellType.NUMERIC)
+            aacCell.setCellValue(ingredient.alphaAcidContent!!)
+
+            val originCell = row.createCell(5, CellType.STRING)
+            originCell.setCellValue(ingredient.origin)
+        }
+
+        // "发酵度", // 6
+        // "酵母菌种", // 7
+        // "理想温度下限", // 8
+        // "理想温度上限", // 9
+        // "酒精耐受度", // 10
+        if (ingredient.mainCategoryId == Category.Yeasts) {
+            val attenuationCell = row.createCell(6, CellType.NUMERIC)
+            attenuationCell.setCellValue(ingredient.attenuation!!)
+
+            val yeastSpeciesCell = row.createCell(7, CellType.STRING)
+            yeastSpeciesCell.setCellValue(ingredient.yeastSpecies)
+
+            val tempLowCell = row.createCell(8, CellType.NUMERIC)
+            tempLowCell.setCellValue(ingredient.optimalTemperatureLow!!.toDouble())
+
+            val tempHighCell = row.createCell(9, CellType.NUMERIC)
+            tempHighCell.setCellValue(ingredient.optimalTemperatureLow!!.toDouble())
+
+            val alcoholToleranceCell = row.createCell(10, CellType.NUMERIC)
+            alcoholToleranceCell.setCellValue(ingredient.alcoholTolerance!!)
+        }
+
+        // "效率", // 11
+        if (ingredient.efficiency != null) {
+            val cell = row.createCell(11, CellType.NUMERIC)
+            cell.setCellValue(ingredient.efficiency!!)
+        }
+
+        // "颜色影响", // 12
+        if (ingredient.colorInfluence != null) {
+            val cell = row.createCell(12, CellType.NUMERIC)
+            cell.setCellValue(ingredient.colorInfluence!!)
+        }
+
+        // "蛋白质添加物", // 13
+        if (ingredient.proteinAddition != null) {
+            val cell = row.createCell(13, CellType.STRING)
+            cell.setCellValue(ingredient.proteinAddition!!)
+        }
+    }
+
+    fun writeFlavor(row: Row, ingredient: Ingredient, flavor: Flavor) {
+        var cell = row.createCell(0, CellType.NUMERIC)
+        cell.setCellValue(flavor.id.toDouble())
+
+        cell = row.createCell(1, CellType.STRING)
+        cell.setCellValue(ingredient.name)
+
+        cell = row.createCell(2, CellType.STRING)
+        cell.setCellValue(categoryNames[ingredient.mainCategoryId])
+
+        cell = row.createCell(3, CellType.STRING)
+        cell.setCellValue(flavor.name)
+
+        cell = row.createCell(4, CellType.NUMERIC)
+        cell.setCellValue(flavor.value.toDouble())
     }
 
     fun saveToDatabase() {

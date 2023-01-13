@@ -17,7 +17,8 @@ class DataFileServiceTests {
     @DisplayName("加载")
     @Test
     fun testLoad() {
-        val ingredients = svc.load("酿造大师笔记.xlsx")
+        svc.open("酿造大师笔记.xlsx")
+        val ingredients = svc.load()
         logger.info { "加载完成，获取原料数据${ingredients.size}条" }
     }
 }

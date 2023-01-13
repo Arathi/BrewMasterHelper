@@ -1,5 +1,6 @@
 package com.undsf.brew.controllers
 
+import com.undsf.brew.models.BasicResponse
 import com.undsf.brew.models.DataResponse
 import com.undsf.brew.models.po.Ingredient
 import com.undsf.brew.services.DataFileService
@@ -21,5 +22,11 @@ class DataFileController {
         val ingredients = svc.load()
         svc.saveToDatabase()
         return DataResponse(0, "成功", ingredients)
+    }
+
+    @PostMapping("/save")
+    fun save(@RequestParam("fileName") fileName: String) : BasicResponse {
+        svc.save(fileName)
+        return BasicResponse(0, "成功")
     }
 }
