@@ -22,7 +22,6 @@ class CategoryService {
         Category.mainCategoryNames.clear()
         for (category in mainCategories) {
             Category.mainCategoryNames[category.id] = category.name
-            // logger.info { "mainCategories[${category.id}] = ${category.name}" }
         }
 
         logger.info { "正在重建子分类全名缓存" }
@@ -30,7 +29,6 @@ class CategoryService {
         Category.fullNames.clear()
         for (category in subcatetories) {
             Category.fullNames[category.id] = category.fullName
-            // logger.info { "fullNames[${category.id}] = ${category.fullName}" }
         }
     }
 

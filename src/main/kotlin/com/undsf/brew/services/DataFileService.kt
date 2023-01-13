@@ -5,6 +5,7 @@ import com.undsf.brew.models.po.Flavor
 import com.undsf.brew.models.po.Ingredient
 import com.undsf.brew.models.vo.IngredientCategory
 import mu.KotlinLogging
+import org.apache.poi.ss.usermodel.CellType
 import org.apache.poi.ss.usermodel.Sheet
 import org.apache.poi.ss.usermodel.Workbook
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
@@ -199,9 +200,24 @@ class DataFileService {
                     // endregion
 
                     // region 提取物、谷物、可浸泡物、其他
-                    "效率" -> ingredient.efficiency = row.getCell(column).numericCellValue
-                    "颜色影响" -> ingredient.colorInfluence = row.getCell(column).numericCellValue
-                    "蛋白质添加物（说明）" -> ingredient.proteinAddition = row.getCell(column).stringCellValue
+                    "效率" -> {
+                        val cell = row.getCell(column)
+                        if (cell.cellType == CellType.NUMERIC) {
+                            ingredient.efficiency = cell.numericCellValue
+                        }
+                    }
+                    "颜色影响" -> {
+                        val cell = row.getCell(column)
+                        if (cell.cellType == CellType.NUMERIC) {
+                            ingredient.colorInfluence = cell.numericCellValue
+                        }
+                    }
+                    "蛋白质添加物（说明）" -> {
+                        val cell = row.getCell(column)
+                        if (cell.cellType == CellType.STRING) {
+                            ingredient.proteinAddition = cell.stringCellValue
+                        }
+                    }
                     // endregion
                 }
             }
