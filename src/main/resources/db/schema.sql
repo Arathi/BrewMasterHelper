@@ -23,3 +23,14 @@ CREATE TABLE flavors (
     name text NOT NULL,
     value INTEGER NOT NULL
 );
+
+CREATE VIEW v_flavors as
+    select 
+        id, 
+        id/1000000 as category_id,
+        id/100000 as subcategory_id,
+        id/1000 as ingredient_id, 
+        iif(id/100 % 10==0, 'std', 'note') as type,
+        name, 
+        value 
+    from flavors;
